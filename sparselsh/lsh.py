@@ -285,12 +285,25 @@ class LSH(object):
             else:
                 raise ValueError("The distance function name is invalid.")
 
-            # TODO: pull out into fn w/ optional threshold arg
             for i, table in enumerate(self.hash_tables):
+                # get hash of query point
                 binary_hash = self._hash(self.uniform_planes[i], query_point)
-                candidates.update(table.get_list(binary_hash)[0])
+                for key in table.keys():
+                    # calculate distance from query point hash to all hashes
+                    distance = LSH.hamming_dist(
+                        self._string_bits_to_array(key),
+                        self._string_bits_to_array(binary_hash))
+                    # NOTE: we could make this threshold user defined
+                    if distance < 2:
+                        members = table.get_list(key)
+                        candidates.update(members)
 
-        print "Candidates", candidates
+            # TODO: pull out into fn w/ optional threshold arg
+            # for i, table in enumerate(self.hash_tables):
+            #     binary_hash = self._hash(self.uniform_planes[i], query_point)
+            #     candidates.update(table.get_list(binary_hash)[0])
+
+        # print "Candidates", candidates
         # # rank candidates by distance function
         ranked_candidates = []
         for ix in candidates:
@@ -314,7 +327,7 @@ class LSH(object):
     @staticmethod
     def euclidean_dist(x, y):
         diff = x - y
-        return sparse.csr_matrix.sqrt( diff.dot(diff))
+        return sparse.csr_matrix.sqrt(diff.dot(diff.transpose()))
 
     @staticmethod
     def euclidean_dist_square(x, y):
@@ -327,7 +340,7 @@ class LSH(object):
     @staticmethod
     def euclidean_dist_centred(x, y):
         diff = x.mean() - y.mean()
-        return diff.dot( diff)
+        return diff.dot(diff.transpose())
 
     @staticmethod
     def l1norm_dist(x, y):
@@ -335,4 +348,4 @@ class LSH(object):
 
     @staticmethod
     def cosine_dist(x, y):
-        return 1 - x.dot(y) / ((x.dot(x) * y.dot(y)) ** 0.5)
+        return 1 - x.dot(y.transpose())[0,0] / ((x.dot(x.transpose())[0,0] * y.dot(y.transpose())[0,0]) ** 0.5)
